@@ -283,18 +283,28 @@ tr:last-child td { border-bottom:none; }
 }
 
 /* ═══ 拖拉排序 ═══ */
-.qw-card { cursor:default; user-select:none; }
-.qw-card.dragging { opacity:0.4; transform:scale(0.97); box-shadow:0 2px 8px rgba(0,0,0,0.12); }
-.qw-card.drag-over { border-color:#43a047; box-shadow:0 0 0 2px #a5d6a7; }
+.qw-card { cursor:default; user-select:none; transition:border-color 0.15s, box-shadow 0.15s, transform 0.15s, opacity 0.15s; }
+.qw-card.dragging { opacity:0.35; box-shadow:none !important; transform:none !important; }
+.qw-card.drag-over { border-color:#43a047 !important; box-shadow:0 0 0 2.5px #a5d6a7 !important; }
 .drag-handle {
   display:inline-flex; align-items:center; justify-content:center;
-  width:20px; height:20px; margin-right:6px;
-  color:#ccc; font-size:14px; cursor:grab; flex-shrink:0;
-  border-radius:4px; transition:color 0.15s;
-  vertical-align:middle;
+  width:22px; height:22px; margin-right:6px;
+  color:#ccc; font-size:16px; cursor:grab;
+  border-radius:4px; transition:color 0.15s; flex-shrink:0;
+  vertical-align:middle; line-height:1;
 }
-.drag-handle:hover { color:#888; }
-.drag-handle:active { cursor:grabbing; }
+.drag-handle:hover { color:#888; background:#f0f0f0; }
+/* 拖曳中的浮動影子 */
+#dragGhost {
+  position:fixed; pointer-events:none; z-index:9999;
+  background:#fff; border:1.5px solid #43a047;
+  border-radius:12px; padding:10px 14px;
+  font-size:13px; font-weight:700; color:#2c2c2c;
+  box-shadow:0 8px 24px rgba(0,0,0,0.15);
+  white-space:nowrap; opacity:0.92;
+  transform:rotate(2deg);
+  display:none;
+}
 
 /* ═══ 行情類別篩選 ═══ */
 .wcat-btn {
@@ -448,14 +458,10 @@ tr:last-child td { border-bottom:none; }
         </div>
         <!-- 右：計算結果 -->
         <div style="display:flex;flex-direction:column;gap:12px;">
-
-          <!-- 合成成本 -->
           <div class="cost-badge" id="costBadge" style="display:none;">
             <span class="cb-lbl" id="costLabel">碎片 ×3 合成成本</span>
             <span class="cb-val" id="costVal">—</span>
           </div>
-
-          <!-- 反推目標售價 -->
           <div id="targetSection" style="display:none;">
             <div style="font-size:12px;font-weight:700;color:#90a4ae;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:10px;">方塊目標售價（掛牌前）</div>
             <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;">
@@ -466,8 +472,6 @@ tr:last-child td { border-bottom:none; }
               <div class="tg"><div class="lbl">+50%</div><div class="val" id="tg4">—</div><div class="sub" id="ts4">—</div></div>
             </div>
           </div>
-
-          <!-- 若有填方塊現價：顯示流程 + 判斷 -->
           <div id="arbFlow" style="display:none;">
             <div class="arb-flow">
               <div class="arb-node">
@@ -488,13 +492,10 @@ tr:last-child td { border-bottom:none; }
             </div>
             <div class="vdict even" id="arbResult">計算中…</div>
           </div>
-
           <div id="arbHint" class="vdict even">輸入碎片價格，自動反推方塊目標售價</div>
-
         </div>
       </div>
     </div>
-
     <div class="card">
       <div style="font-size:12px;font-weight:800;color:#aaa;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:12px;">套利歷史</div>
       <div id="arbHistList"><span style="color:#ccc;font-size:14px;">尚無紀錄</span></div>
@@ -616,6 +617,7 @@ tr:last-child td { border-bottom:none; }
 
 </div>
 <div class="toast" id="toast"></div>
+<div id="dragGhost"></div>
 
 <script>
 let inv     = JSON.parse(localStorage.getItem('mf_inv')     || '[]');
@@ -929,33 +931,74 @@ function quickUpdate(name, cat) {
 
 function removeWatch(i) { watch.splice(i,1); localStorage.setItem('mf_watch',JSON.stringify(watch)); renderAll(); }
 
-// 拖拉排序邏輯
+// ── 拖拉排序（mousedown） ──
 let dragSrc = null;
-function onDragStart(e, name) {
-  dragSrc = name;
-  e.dataTransfer.effectAllowed = 'move';
-  e.currentTarget.classList.add('dragging');
-}
-function onDragEnd(e) {
-  e.currentTarget.classList.remove('dragging');
-  document.querySelectorAll('.qw-card').forEach(c => c.classList.remove('drag-over'));
-}
-function onDragOver(e, name) {
-  e.preventDefault();
-  e.dataTransfer.dropEffect = 'move';
-  document.querySelectorAll('.qw-card').forEach(c => c.classList.remove('drag-over'));
-  if (name !== dragSrc) e.currentTarget.classList.add('drag-over');
-}
-function onDrop(e, name) {
-  e.preventDefault();
-  if (!dragSrc || dragSrc === name) return;
-  const from = watchOrder.indexOf(dragSrc);
-  const to   = watchOrder.indexOf(name);
-  if (from < 0 || to < 0) return;
-  watchOrder.splice(from, 1);
-  watchOrder.splice(to, 0, dragSrc);
-  saveWatchOrder();
-  renderWatchUI();
+const ghost = document.getElementById('dragGhost');
+
+function initDrag(handle, name) {
+  handle.addEventListener('mousedown', e => {
+    e.preventDefault();
+    dragSrc = name;
+
+    // 顯示 ghost
+    ghost.textContent = '✦ ' + name;
+    ghost.style.display = 'block';
+    ghost.style.left = (e.clientX + 14) + 'px';
+    ghost.style.top  = (e.clientY - 14) + 'px';
+
+    // 標記來源卡片
+    const srcCard = handle.closest('.qw-card');
+    if (srcCard) srcCard.classList.add('dragging');
+
+    function onMove(ev) {
+      ghost.style.left = (ev.clientX + 14) + 'px';
+      ghost.style.top  = (ev.clientY - 14) + 'px';
+
+      // 找目前滑鼠下面的 qw-card
+      ghost.style.display = 'none';
+      const el = document.elementFromPoint(ev.clientX, ev.clientY);
+      ghost.style.display = 'block';
+      const overCard = el ? el.closest('.qw-card') : null;
+
+      document.querySelectorAll('.qw-card').forEach(c => c.classList.remove('drag-over'));
+      if (overCard) {
+        const overName = overCard.dataset.name;
+        if (overName && overName !== dragSrc) overCard.classList.add('drag-over');
+      }
+    }
+
+    function onUp(ev) {
+      ghost.style.display = 'none';
+      document.querySelectorAll('.qw-card').forEach(c => {
+        c.classList.remove('dragging');
+        c.classList.remove('drag-over');
+      });
+
+      // 找放下位置
+      ghost.style.display = 'none';
+      const el = document.elementFromPoint(ev.clientX, ev.clientY);
+      const overCard = el ? el.closest('.qw-card') : null;
+      if (overCard) {
+        const overName = overCard.dataset.name;
+        if (overName && overName !== dragSrc) {
+          const from = watchOrder.indexOf(dragSrc);
+          const to   = watchOrder.indexOf(overName);
+          if (from >= 0 && to >= 0) {
+            watchOrder.splice(from, 1);
+            watchOrder.splice(to, 0, dragSrc);
+            saveWatchOrder();
+            renderWatchUI();
+          }
+        }
+      }
+      dragSrc = null;
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup',   onUp);
+    }
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup',   onUp);
+  });
 }
 
 function renderWatchUI() {
@@ -991,10 +1034,10 @@ function renderWatchUI() {
       const icon = CAT_ICON[d.cat] || '🔹';
       const card = document.createElement('div');
       card.className = 'qw-card';
-      card.draggable = true;
+      card.dataset.name = n;
       card.innerHTML = `
         <div style="display:flex;align-items:center;margin-bottom:1px;">
-          <span class="drag-handle" title="拖曳排序">⠿</span>
+          <span class="drag-handle" title="按住拖曳排序">⠿</span>
           <span class="qw-name">${n}</span>
         </div>
         <div class="qw-cat">${icon} ${d.cat}</div>
@@ -1003,10 +1046,9 @@ function renderWatchUI() {
           <input type="number" id="qwinput_${n}" placeholder="輸入新價格" />
           <button onclick="quickUpdate('${n}','${d.cat}')">更新</button>
         </div>`;
-      card.addEventListener('dragstart', e => onDragStart(e, n));
-      card.addEventListener('dragend',   e => onDragEnd(e));
-      card.addEventListener('dragover',  e => onDragOver(e, n));
-      card.addEventListener('drop',      e => onDrop(e, n));
+      // 只綁定 handle，不影響 input/button
+      const handle = card.querySelector('.drag-handle');
+      initDrag(handle, n);
       grid.appendChild(card);
     });
     qEl.innerHTML = '';
