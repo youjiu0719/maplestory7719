@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>楓之谷拍賣助手</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: 'PingFang TC', 'Microsoft JhengHei', sans-serif;
+  background: #f2f4f3; color: #2c2c2c;
+  font-size: 15px; line-height: 1.5;
+}
+
+/* ═══ 導覽 ═══ */
+.nav {
+  position: sticky; top: 0; z-index: 200;
+  background: #1e2b1f;
+  display: flex; align-items: stretch;
+  overflow-x: auto; overflow-y: hidden;
+  border-bottom: 3px solid #2e7d32;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.2);
+  min-height: 60px;
+}
+.nav-brand {
+  color: #ffd54f; font-size: 17px; font-weight: 800;
+  padding: 0 24px; display: flex; align-items: center;
+  border-right: 1px solid rgba(255,255,255,0.12);
+  white-space: nowrap; letter-spacing: 0.5px; flex-shrink: 0;
+}
+.nav a {
+  color: #9cba9e; text-decoration: none;
+  padding: 0 22px; font-size: 15px; font-weight: 700;
+  white-space: nowrap; display: flex; align-items: center; gap: 6px;
+  border-bottom: 3px solid transparent; margin-bottom: -3px;
+  transition: color 0.15s, border-color 0.15s; letter-spacing: 0.2px;
+}
+.nav a:hover { color: #e8f5e9; background: rgba(255,255,255,0.05); }
+.nav a.active { color: #ffd54f; border-bottom-color: #ffd54f; }
+
+/* ═══ 頁 ═══ */
+.page { max-width: 980px; margin: 0 auto; padding: 28px 18px 80px; }
+
+/* ═══ 區塊 ═══ */
+.sec { margin-bottom: 44px; scroll-margin-top: 64px; }
+.sec-hd {
+  font-size: 12px; font-weight: 800; letter-spacing: 1.2px;
+  text-transform: uppercase; color: #888;
+  margin-bottom: 14px;
+  display: flex; align-items: center; gap: 10px;
+}
+.sec-hd::after { content:''; flex:1; height:1px; background:#e0e0e0; }
+
+/* ═══ 卡片 ═══ */
+.card {
+  background: #fff; border-radius: 16px;
+  border: 1px solid #e8ebe8;
+  padding: 22px 26px; margin-bottom: 14px;
+}
+
+/* ═══ 統計 ═══ */
+.stats { display: grid; grid-template-columns: repeat(4,1fr); gap: 12px; margin-bottom: 16px; }
+.stat { background:#fff; border:1px solid #e8ebe8; border-radius:14px; padding:16px 18px; }
+.stat-lbl { font-size:11px; font-weight:700; letter-spacing:0.5px; color:#bbb; text-transform:uppercase; margin-bottom:6px; }
+.stat-num { font-size:26px; font-weight:800; line-height:1; }
+.stat-num.g { color:#2e7d32; } .stat-num.r { color:#c62828; }
+
+/* ═══ 雙欄 ═══ */
+.g2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+
+/* ═══ 表單 ═══ */
+.fg { display:flex; flex-direction:column; gap:5px; margin-bottom:13px; }
+.fg label { font-size:12px; font-weight:700; color:#999; letter-spacing:0.3px; }
+input, select {
+  width:100%; padding:11px 14px;
+  border:1.5px solid #e0e0e0; border-radius:10px;
+  font-size:16px; background:#fafafa; color:#2c2c2c;
+  transition:border-color 0.15s, background 0.15s;
+  -webkit-appearance:none;
+}
+input:focus, select:focus { outline:none; border-color:#43a047; background:#fff; }
+select {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23999' d='M6 8L0 0h12z'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:right 14px center; padding-right:36px; cursor:pointer;
+}
+
+/* ═══ 按鈕 ═══ */
+.btn {
+  display:block; width:100%; padding:12px 16px;
+  border:none; border-radius:10px; cursor:pointer;
+  font-weight:700; font-size:14px; letter-spacing:0.3px;
+  transition:filter 0.15s, transform 0.1s;
+}
+.btn:hover { filter:brightness(1.08); }
+.btn:active { transform:scale(0.98); }
+.btn-blue   { background:#1565c0; color:#fff; }
+.btn-amber  { background:#e65100; color:#fff; }
+.btn-slate  { background:#455a64; color:#fff; }
+.btn-indigo { background:#4527a0; color:#fff; }
+.btn-sm {
+  padding:5px 11px; font-size:12px; font-weight:600;
+  border:1.5px solid #ddd; background:none;
+  border-radius:7px; cursor:pointer; color:#999; width:auto;
+}
+.btn-sm:hover { border-color:#bbb; color:#555; }
+
+/* ═══ 定價格子 ═══ */
+.pgrid { display:grid; grid-template-columns:repeat(6,1fr); gap:10px; margin:14px 0 4px; }
+.pi {
+  background:#fffbf0; border:1.5px solid #ffe082;
+  border-radius:12px; padding:14px 8px;
+  text-align:center; cursor:pointer;
+  transition:border-color 0.15s, box-shadow 0.15s;
+}
+.pi:hover { border-color:#e65100; box-shadow:0 2px 8px rgba(230,81,0,0.12); }
+.pi .lbl  { font-size:11px; font-weight:700; color:#bbb; letter-spacing:0.3px; margin-bottom:5px; }
+.pi .val  { font-size:17px; font-weight:800; color:#e65100; line-height:1.2; }
+.pi .earn { font-size:11px; font-weight:600; color:#388e3c; margin-top:4px; }
+
+/* ═══ 試算條 ═══ */
+.trial {
+  display:flex; gap:14px; align-items:center;
+  background:#f7faf7; border:1.5px solid #e0ebe0;
+  border-radius:12px; padding:14px 18px; margin-top:14px;
+}
+.trial input { flex:1; margin:0; background:#fff; }
+.trial-res { text-align:right; min-width:120px; }
+.trial-res .sub { font-size:11px; font-weight:700; color:#bbb; letter-spacing:0.3px; display:block; margin-bottom:2px; }
+.trial-res .num { font-size:20px; font-weight:800; display:block; }
+
+/* ═══ 反推目標格 ═══ */
+.target-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin-top:14px; }
+.tg {
+  background:#f0f7ff; border:1.5px solid #bbdefb;
+  border-radius:12px; padding:16px 8px;
+  text-align:center; cursor:pointer;
+  transition:border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+.tg:hover {
+  border-color:#1565c0;
+  box-shadow:0 6px 18px rgba(21,101,192,0.14);
+  transform:translateY(-3px);
+}
+.tg .lbl  { font-size:11px; font-weight:700; color:#90a4ae; letter-spacing:0.3px; margin-bottom:6px; }
+.tg .val  { font-size:19px; font-weight:800; color:#1565c0; line-height:1.2; }
+.tg .sub  { font-size:11px; font-weight:600; color:#64b5f6; margin-top:5px; }
+
+/* ═══ 合成成本顯示 ═══ */
+.cost-badge {
+  display:inline-flex; align-items:center; gap:8px;
+  background:#fff3e0; border:1.5px solid #ffe0b2;
+  border-radius:10px; padding:10px 16px; margin-bottom:14px;
+}
+.cost-badge .cb-lbl { font-size:12px; font-weight:700; color:#bf8040; }
+.cost-badge .cb-val { font-size:18px; font-weight:800; color:#e65100; }
+
+/* ═══ 套利流程 ═══ */
+.arb-flow {
+  display:flex; align-items:center; gap:8px;
+  background:#f7f7f7; border-radius:12px;
+  padding:16px 18px; flex-wrap:wrap; margin-bottom:12px;
+}
+.arb-node { flex:1; min-width:90px; text-align:center; }
+.arb-node .an-lbl { font-size:11px; font-weight:700; color:#bbb; letter-spacing:0.3px; margin-bottom:4px; }
+.arb-node .an-val { font-size:19px; font-weight:800; color:#2c2c2c; }
+.arb-arr { font-size:18px; color:#ccc; flex-shrink:0; }
+
+/* ═══ 套利判斷 ═══ */
+.vdict { border-radius:12px; padding:14px 18px; font-size:15px; font-weight:700; }
+.vdict.win  { background:#f1f8f1; color:#1b5e20; border:1.5px solid #81c784; }
+.vdict.lose { background:#fff5f5; color:#b71c1c; border:1.5px solid #e57373; }
+.vdict.even { background:#f7f7f7; color:#888;    border:1.5px solid #e0e0e0; }
+.vdict small { display:block; font-weight:500; font-size:12.5px; margin-top:5px; opacity:0.8; }
+
+/* ═══ 快選 ═══ */
+.chips { display:flex; gap:7px; flex-wrap:wrap; margin-bottom:16px; }
+.chip {
+  padding:6px 16px; border-radius:20px; font-size:13px; font-weight:600;
+  border:1.5px solid #ddd; background:none; cursor:pointer; color:#888;
+  transition:all 0.15s;
+}
+.chip:hover { border-color:#aaa; color:#555; }
+.chip.on { background:#fff8e1; border-color:#ffb300; color:#e65100; }
+
+/* ═══ 徽章 ═══ */
+.badge { display:inline-block; padding:3px 9px; border-radius:20px; font-size:12px; font-weight:700; }
+.bg { background:#e8f5e9; color:#1b5e20; }
+.br { background:#ffebee; color:#b71c1c; }
+.bn { background:#f0f0f0; color:#666; }
+
+/* ═══ 行情標籤 ═══ */
+.mwrap { display:flex; gap:10px; flex-wrap:wrap; }
+.mtag { background:#fffde7; padding:8px 16px; border-radius:20px; border:1.5px solid #ffe082; font-size:14px; font-weight:500; }
+.mtag b { color:#e65100; font-weight:800; }
+
+/* ═══ 表格 ═══ */
+.tbl-wrap { border:1.5px solid #eee; border-radius:12px; overflow:hidden; margin-top:10px; }
+.tbl-scroll { max-height:260px; overflow-y:auto; }
+table { width:100%; border-collapse:collapse; font-size:14px; }
+th { font-size:11px; font-weight:800; color:#bbb; letter-spacing:0.5px; text-transform:uppercase; padding:10px 12px; border-bottom:1.5px solid #eee; text-align:left; background:#fafafa; }
+td { padding:12px 12px; border-bottom:1px solid #f2f2f2; vertical-align:middle; }
+tr:last-child td { border-bottom:none; }
+
+/* ═══ 利潤條 ═══ */
+.pbar { padding:14px 20px; background:#1e2b1f; color:#fff; border-radius:12px; margin-top:14px; display:flex; justify-content:space-between; align-items:center; }
+.pbar .lbl { font-size:13px; color:#9cba9e; font-weight:600; }
+.pbar .num { font-size:22px; font-weight:800; }
+
+.hint { font-size:12px; color:#ccc; text-align:center; margin-top:8px; }
+
+/* ═══ C1 漸顯上升 — 區塊入場 ═══ */
+@keyframes fadeInUp {
+  from { opacity:0; transform:translateY(22px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+.sec { opacity:0; animation:fadeInUp 0.55s ease forwards; }
+#sec-pricing { animation-delay:0.05s; }
+#sec-shard   { animation-delay:0.15s; }
+#sec-inv     { animation-delay:0.25s; }
+#sec-watch   { animation-delay:0.35s; }
+#sec-stats   { animation-delay:0.45s; }
+
+/* ═══ A2 浮動升起 — 定價格子 & 目標格 hover ═══ */
+.pi {
+  transition:border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+.pi:hover {
+  border-color:#e65100;
+  box-shadow:0 6px 18px rgba(230,81,0,0.14);
+  transform:translateY(-3px);
+}
+.tg {
+  transition:border-color 0.2s, box-shadow 0.2s, transform 0.2s;
+}
+.tg:hover {
+  border-color:#1565c0;
+  box-shadow:0 6px 18px rgba(21,101,192,0.14);
+  transform:translateY(-3px);
+}
+
+/* ═══ D5 按壓回饋 ═══ */
+.btn {
+  transition:filter 0.15s, transform 0.12s, box-shadow 0.12s;
+}
+.btn:hover {
+  filter:brightness(1.08);
+  box-shadow:0 4px 12px rgba(0,0,0,0.15);
+}
+.btn:active {
+  transform:scale(0.96);
+  filter:brightness(0.92);
+  box-shadow:0 1px 4px rgba(0,0,0,0.1);
+}
+
+/* ═══ G2 Tooltip — 格子點擊提示 ═══ */
+.pi, .tg { position:relative; }
+.pi::after, .tg::after {
+  content:'點擊複製';
+  position:absolute; bottom:calc(100% + 7px); left:50%;
+  transform:translateX(-50%) translateY(5px);
+  background:#263238; color:#e8f5e9;
+  font-size:11px; font-weight:600; white-space:nowrap;
+  padding:4px 9px; border-radius:6px;
+  opacity:0; pointer-events:none;
+  transition:opacity 0.18s, transform 0.18s;
+  z-index:10;
+}
+.pi:hover::after, .tg:hover::after {
+  opacity:1;
+  transform:translateX(-50%) translateY(0);
+}
+
+@media (max-width:620px) {
+  .stats { grid-template-columns:1fr 1fr; }
+  .g2 { grid-template-columns:1fr; }
+  .pgrid, .target-grid { grid-template-columns:repeat(3,1fr); }
+  .arb-flow { flex-direction:column; }
+  .nav a { padding:0 15px; font-size:13px; }
+  #sec-shard .card > div[style*="grid-template-columns:2fr 5fr"] {
+    grid-template-columns: 1fr !important;
+  }
+}
+
+.toast {
+  position:fixed; bottom:2rem; left:50%; transform:translateX(-50%);
+  background:#1e2b1f; color:#e8f5e9;
+  padding:10px 24px; border-radius:24px;
+  font-size:13px; font-weight:600;
+  opacity:0; transition:opacity 0.3s;
+  pointer-events:none; z-index:999; white-space:nowrap;
+  box-shadow:0 4px 16px rgba(0,0,0,0.2);
+}
+</style>
+</head>
+<body>
+
+<nav class="nav">
+  <div class="nav-brand">🍁 拍賣助手</div>
+  <a href="#sec-pricing">🔍 定價試算</a>
+  <a href="#sec-shard">💎 碎片套利</a>
+  <a href="#sec-inv">📦 庫存管理</a>
+  <a href="#sec-watch">👁 行情觀察</a>
+  <a href="#sec-stats">📊 統計</a>
+</nav>
+
+<div class="page">
+
+  <!-- ══ 定價試算 ══ -->
+  <div class="sec" id="sec-pricing">
+    <div class="sec-hd">🔍 定價試算</div>
+    <div class="card">
+      <div class="fg">
+        <label>進貨成本（楓幣）</label>
+        <input type="number" id="pCost" placeholder="例如 1000000" oninput="calcPricing()" />
+      </div>
+      <div class="pgrid">
+        <div class="pi"><div class="lbl">保本</div><div class="val" id="pi0">—</div><div class="earn" id="pe0">輸入成本</div></div>
+        <div class="pi"><div class="lbl">+10%</div><div class="val" id="pi1">—</div><div class="earn" id="pe1">—</div></div>
+        <div class="pi"><div class="lbl">+20%</div><div class="val" id="pi2">—</div><div class="earn" id="pe2">—</div></div>
+        <div class="pi"><div class="lbl">+30%</div><div class="val" id="pi3">—</div><div class="earn" id="pe3">—</div></div>
+        <div class="pi"><div class="lbl">+40%</div><div class="val" id="pi4">—</div><div class="earn" id="pe4">—</div></div>
+        <div class="pi"><div class="lbl">+50%</div><div class="val" id="pi5">—</div><div class="earn" id="pe5">—</div></div>
+      </div>
+      <div class="trial">
+        <div class="fg" style="flex:1;margin:0;">
+          <label>自訂售價驗算</label>
+          <input type="number" id="pCustom" placeholder="輸入欲掛牌價格" oninput="calcPricing()" />
+        </div>
+        <div class="trial-res">
+          <span class="sub">稅後實拿</span>
+          <span class="num" id="cGet" style="color:#2c2c2c;">—</span>
+          <span class="sub" style="margin-top:8px;">純利</span>
+          <span class="num" id="cProfit">—</span>
+        </div>
+      </div>
+      <p class="hint">點選格子即可複製售價到剪貼簿</p>
+    </div>
+  </div>
+
+  <!-- ══ 碎片套利 ══ -->
+  <div class="sec" id="sec-shard">
+    <div class="sec-hd">💎 碎片套利</div>
+    <div class="card">
+      <div class="chips" id="presetChips"></div>
+      <div style="display:grid;grid-template-columns:2fr 5fr;gap:20px;">
+        <!-- 左：輸入 -->
+        <div style="font-size:13px;">
+          <div class="fg"><label>碎片名稱</label><input type="text" id="shardName" placeholder="e.g. 奇幻方塊" oninput="renderArb()" style="font-size:14px;padding:9px 11px;" /></div>
+          <div class="fg">
+            <label>合成比例</label>
+            <select id="shardRatio" onchange="renderArb()" style="font-size:14px;padding:9px 11px;">
+              <option value="3">3 片 → 1 個</option>
+              <option value="2">2 片 → 1 個</option>
+              <option value="4">4 片 → 1 個</option>
+              <option value="5">5 片 → 1 個</option>
+            </select>
+          </div>
+          <div class="fg"><label>碎片現價（萬）</label><input type="number" id="shardPrice" value="11" step="0.1" oninput="renderArb()" style="font-size:14px;padding:9px 11px;" /></div>
+          <div class="fg"><label>方塊現價（萬，選填）</label><input type="number" id="blockPrice" placeholder="有現價才填" step="0.1" oninput="renderArb()" style="font-size:14px;padding:9px 11px;" /></div>
+          <div style="display:flex;gap:8px;margin-top:4px;">
+            <button class="btn btn-slate" style="flex:1;font-size:13px;padding:10px 8px;" onclick="saveArbLog()">記錄</button>
+            <button class="btn btn-indigo" style="flex:1;font-size:13px;padding:10px 8px;" onclick="savePreset()">儲存快選</button>
+          </div>
+        </div>
+        <!-- 右：計算結果 -->
+        <div style="display:flex;flex-direction:column;gap:12px;">
+
+          <!-- 合成成本 -->
+          <div class="cost-badge" id="costBadge" style="display:none;">
+            <span class="cb-lbl" id="costLabel">碎片 ×3 合成成本</span>
+            <span class="cb-val" id="costVal">—</span>
+          </div>
+
+          <!-- 反推目標售價 -->
+          <div id="targetSection" style="display:none;">
+            <div style="font-size:12px;font-weight:700;color:#90a4ae;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:10px;">方塊目標售價（掛牌前）</div>
+            <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:10px;">
+              <div class="tg"><div class="lbl">保本</div><div class="val" id="tg0">—</div><div class="sub">+0</div></div>
+              <div class="tg"><div class="lbl">+10%</div><div class="val" id="tg1">—</div><div class="sub" id="ts1">—</div></div>
+              <div class="tg"><div class="lbl">+20%</div><div class="val" id="tg2">—</div><div class="sub" id="ts2">—</div></div>
+              <div class="tg"><div class="lbl">+30%</div><div class="val" id="tg3">—</div><div class="sub" id="ts3">—</div></div>
+              <div class="tg"><div class="lbl">+50%</div><div class="val" id="tg4">—</div><div class="sub" id="ts4">—</div></div>
+            </div>
+          </div>
+
+          <!-- 若有填方塊現價：顯示流程 + 判斷 -->
+          <div id="arbFlow" style="display:none;">
+            <div class="arb-flow">
+              <div class="arb-node">
+                <div class="an-lbl" id="arbShardLabel">碎片 ×3</div>
+                <div class="an-val" id="arbCost">—</div>
+                <div class="an-lbl" style="margin-top:3px;">合成成本</div>
+              </div>
+              <div class="arb-arr">→</div>
+              <div class="arb-node">
+                <div class="an-lbl">方塊現價</div>
+                <div class="an-val" id="arbBlock">—</div>
+              </div>
+              <div class="arb-arr">→</div>
+              <div class="arb-node">
+                <div class="an-lbl">稅後實拿</div>
+                <div class="an-val" id="arbGet">—</div>
+              </div>
+            </div>
+            <div class="vdict even" id="arbResult">計算中…</div>
+          </div>
+
+          <div id="arbHint" class="vdict even">輸入碎片價格，自動反推方塊目標售價</div>
+
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div style="font-size:12px;font-weight:800;color:#aaa;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:12px;">套利歷史</div>
+      <div id="arbHistList"><span style="color:#ccc;font-size:14px;">尚無紀錄</span></div>
+    </div>
+  </div>
+
+  <!-- ══ 庫存管理 ══ -->
+  <div class="sec" id="sec-inv">
+    <div class="sec-hd">📦 庫存管理</div>
+    <div class="g2">
+      <div class="card">
+        <div style="font-size:12px;font-weight:800;color:#aaa;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:14px;">進貨登記</div>
+        <div class="fg"><label>道具名稱</label><input type="text" id="bName" placeholder="e.g. 奇幻方塊" /></div>
+        <div class="fg"><label>進貨單價（楓幣）</label><input type="number" id="bPrice" placeholder="例如 240000000" /></div>
+        <div class="fg"><label>數量</label><input type="number" id="bQty" placeholder="件數" min="1" /></div>
+        <button class="btn btn-blue" onclick="addStock()">確認入庫</button>
+      </div>
+      <div class="card">
+        <div style="font-size:12px;font-weight:800;color:#aaa;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:14px;">賣出結算 <span style="font-weight:500;color:#ccc;text-transform:none;letter-spacing:0;">6% 稅</span></div>
+        <div class="fg"><label>選擇道具</label><select id="sSelect"><option value="">— 選擇庫存 —</option></select></div>
+        <div class="fg"><label>成交總金額</label><input type="number" id="sTotal" placeholder="拍賣板上的金額" /></div>
+        <div class="fg"><label>數量</label><input type="number" id="sQty" value="1" min="1" /></div>
+        <div id="sellPreview" style="display:none;" class="trial">
+          <div style="flex:1;font-size:14px;font-weight:600;">稅後實拿 <strong id="spGet" style="font-size:16px;">—</strong></div>
+          <div class="trial-res"><span class="sub">預估純利</span><span class="num" id="spProfit">—</span></div>
+        </div>
+        <button class="btn btn-amber" onclick="sellItem()">確認成交</button>
+      </div>
+    </div>
+    <div class="card">
+      <div style="font-size:12px;font-weight:800;color:#aaa;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:12px;">目前庫存</div>
+      <div id="stockList"><span style="color:#ccc;font-size:14px;">尚無庫存</span></div>
+    </div>
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <span style="font-size:12px;font-weight:800;color:#aaa;letter-spacing:0.5px;text-transform:uppercase;">歷史成交紀錄</span>
+        <button class="btn-sm" onclick="clearLogs()">清除全部</button>
+      </div>
+      <div id="logList"><span style="color:#ccc;font-size:14px;">尚無紀錄</span></div>
+      <div id="totalStrip" style="display:none;" class="pbar">
+        <span class="lbl">累積總利潤</span>
+        <span class="num" id="grandTotal">0</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 行情觀察 ══ -->
+  <div class="sec" id="sec-watch">
+    <div class="sec-hd">👁 行情觀察</div>
+    <div class="card">
+      <div style="font-size:12px;font-weight:800;color:#aaa;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:14px;">新增紀錄</div>
+      <div style="display:grid;grid-template-columns:2fr 2fr auto;gap:12px;align-items:end;">
+        <div class="fg" style="margin:0;"><label>道具名稱</label><input type="text" id="watchName" placeholder="e.g. 奇幻方塊" /></div>
+        <div class="fg" style="margin:0;"><label>目前價格</label><input type="number" id="watchPrice" placeholder="拍賣行現價" /></div>
+        <button class="btn btn-indigo" style="width:auto;padding:11px 20px;" onclick="addWatch()">紀錄</button>
+      </div>
+    </div>
+    <div class="card">
+      <div style="font-size:12px;font-weight:800;color:#aaa;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:12px;">平均行情</div>
+      <div class="mwrap" id="watchSummary"><span style="color:#ccc;font-size:14px;">尚未紀錄</span></div>
+    </div>
+    <div class="card">
+      <div style="font-size:12px;font-weight:800;color:#aaa;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:4px;">明細紀錄</div>
+      <div class="tbl-wrap tbl-scroll">
+        <table><thead><tr><th>時間</th><th>道具</th><th>價格</th><th></th></tr></thead>
+        <tbody id="watchList"></tbody></table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══ 統計 ══ -->
+  <div class="sec" id="sec-stats">
+    <div class="sec-hd">📊 統計總覽</div>
+    <div class="stats">
+      <div class="stat"><div class="stat-lbl">庫存品項</div><div class="stat-num" id="ovStock">0</div></div>
+      <div class="stat"><div class="stat-lbl">成交筆數</div><div class="stat-num" id="ovTrades">0</div></div>
+      <div class="stat"><div class="stat-lbl">累積純利</div><div class="stat-num" id="ovProfit">0</div></div>
+      <div class="stat"><div class="stat-lbl">勝率</div><div class="stat-num" id="ovWin">—</div></div>
+    </div>
+    <div class="card">
+      <div style="font-size:12px;font-weight:800;color:#aaa;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:12px;">最近 5 筆成交</div>
+      <div id="ov_log_list"><span style="color:#ccc;font-size:14px;">尚無紀錄</span></div>
+      <div id="ov_total_strip" style="display:none;" class="pbar">
+        <span class="lbl">累積總利潤</span>
+        <span class="num" id="ov_grand">0</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+let inv     = JSON.parse(localStorage.getItem('mf_inv')     || '[]');
+let logs    = JSON.parse(localStorage.getItem('mf_logs')    || '[]');
+let watch   = JSON.parse(localStorage.getItem('mf_watch')   || '[]');
+let arblogs = JSON.parse(localStorage.getItem('mf_arblogs') || '[]');
+let presets = JSON.parse(localStorage.getItem('mf_presets') || JSON.stringify([
+  { name: '奇幻方塊',     ratio: 3 },
+  { name: '大師奇幻方塊', ratio: 3 },
+  { name: '附加奇幻方塊', ratio: 3 },
+  { name: '大師附加奇幻方塊', ratio: 3 },
+]));
+
+// ── 數字格式：X萬XXXX ──
+function fmt(n) {
+  if (isNaN(n) || n === undefined || n === null) return '—';
+  n = Math.round(n);
+  const sign = n < 0 ? '-' : '';
+  const abs  = Math.abs(n);
+  if (abs < 10000) return sign + abs.toLocaleString();
+  const wan  = Math.floor(abs / 10000);
+  const rest = abs % 10000;
+  if (rest === 0) return sign + wan + '萬';
+  return sign + wan + '萬' + String(rest).padStart(4, '0');
+}
+
+// ── 導覽高亮 ──
+const SECS = ['sec-pricing','sec-shard','sec-inv','sec-watch','sec-stats'];
+const NAVS = document.querySelectorAll('.nav a');
+function updateNav() {
+  let cur = SECS[0];
+  SECS.forEach(id => { const el=document.getElementById(id); if(el&&el.getBoundingClientRect().top<=70) cur=id; });
+  NAVS.forEach(a => a.classList.toggle('active', a.getAttribute('href')==='#'+cur));
+}
+window.addEventListener('scroll', updateNav, {passive:true});
+
+// ── 定價試算 ──
+const RATES = [0, 0.1, 0.2, 0.3, 0.4, 0.5];
+function calcPricing() {
+  const cost   = parseFloat(document.getElementById('pCost').value);
+  const custom = parseFloat(document.getElementById('pCustom').value);
+  RATES.forEach((r,i) => {
+    const vEl = document.getElementById('pi'+i);
+    const eEl = document.getElementById('pe'+i);
+    const box = document.querySelectorAll('.pi')[i];
+    if (!cost||cost<=0) { vEl.textContent='—'; eEl.textContent='輸入成本'; box.onclick=null; return; }
+    const sell   = Math.ceil((cost*(1+r))/0.94);
+    const profit = Math.floor(sell*0.94)-cost;
+    vEl.textContent = fmt(sell);
+    eEl.textContent = '+'+ fmt(profit);
+    box.onclick = () => { navigator.clipboard&&navigator.clipboard.writeText(String(sell)); showToast('已複製 '+fmt(sell)); };
+  });
+  if (custom>0&&cost>0) {
+    const get=Math.floor(custom*0.94), profit=get-cost;
+    document.getElementById('cGet').textContent = fmt(get);
+    const el=document.getElementById('cProfit');
+    el.textContent=(profit>=0?'+':'')+fmt(profit);
+    el.style.color=profit>=0?'#2e7d32':'#c62828';
+  } else {
+    document.getElementById('cGet').textContent='—';
+    document.getElementById('cProfit').textContent='—';
+  }
+}
+
+// ── 碎片套利 ──
+function renderPresets() {
+  const cur=document.getElementById('shardName').value;
+  document.getElementById('presetChips').innerHTML=presets.map((p,i)=>
+    `<button class="chip ${cur===p.name?'on':''}" onclick="applyPreset(${i})">${p.name}</button>`
+  ).join('');
+}
+function applyPreset(i) {
+  const p=presets[i];
+  document.getElementById('shardName').value=p.name;
+  document.getElementById('shardRatio').value=String(p.ratio);
+  renderPresets(); renderArb();
+}
+function savePreset() {
+  const name=document.getElementById('shardName').value.trim();
+  const ratio=parseInt(document.getElementById('shardRatio').value);
+  if(!name){showToast('請先輸入名稱');return;}
+  if(presets.find(p=>p.name===name)){showToast('已存在');return;}
+  presets.push({name,ratio});
+  localStorage.setItem('mf_presets',JSON.stringify(presets));
+  renderPresets(); showToast(name+' 已儲存');
+}
+
+const TG_RATES = [0, 0.1, 0.2, 0.3, 0.5];
+
+function renderArb() {
+  renderPresets();
+  const ratio  = parseInt(document.getElementById('shardRatio').value)||3;
+  const shardP = (parseFloat(document.getElementById('shardPrice').value)||0) * 10000;
+  const blockP = (parseFloat(document.getElementById('blockPrice').value)||0) * 10000;
+
+  const costBadge    = document.getElementById('costBadge');
+  const targetSec    = document.getElementById('targetSection');
+  const arbFlowBox   = document.getElementById('arbFlow');
+  const hint         = document.getElementById('arbHint');
+
+  // 沒有碎片價
+  if (!shardP) {
+    costBadge.style.display  = 'none';
+    targetSec.style.display  = 'none';
+    arbFlowBox.style.display = 'none';
+    hint.style.display       = 'block';
+    hint.className = 'vdict even';
+    hint.innerHTML = '輸入碎片價格，自動反推方塊目標售價';
+    return;
+  }
+
+  const cost = shardP * ratio;
+
+  // 合成成本
+  costBadge.style.display = 'flex';
+  document.getElementById('costLabel').textContent = '碎片 ×'+ratio+' 合成成本';
+  document.getElementById('costVal').textContent   = fmt(cost);
+
+  // 反推目標格
+  targetSec.style.display = 'block';
+  TG_RATES.forEach((r,i) => {
+    const target = Math.ceil((cost*(1+r))/0.94);
+    const profit = Math.floor(target*0.94) - cost;
+    const box = document.querySelectorAll('.tg')[i];
+    document.getElementById('tg'+i).textContent = fmt(target);
+    if (i > 0) document.getElementById('ts'+i).textContent = '+'+fmt(profit);
+    else document.querySelector('.tg .sub').textContent = '+0';
+    if (box) box.onclick = () => { navigator.clipboard&&navigator.clipboard.writeText(String(target)); showToast('已複製 '+fmt(target)); };
+  });
+
+  hint.style.display = 'none';
+
+  // 如果也有方塊現價：顯示流程 + 判斷
+  if (blockP) {
+    arbFlowBox.style.display = 'block';
+    const get    = Math.floor(blockP*0.94);
+    const profit = get - cost;
+    const roi    = profit/cost*100;
+    document.getElementById('arbShardLabel').textContent = '碎片 ×'+ratio;
+    document.getElementById('arbCost').textContent  = fmt(cost);
+    document.getElementById('arbBlock').textContent = fmt(blockP);
+    document.getElementById('arbGet').textContent   = fmt(get);
+    const res = document.getElementById('arbResult');
+    if (profit>0) {
+      res.className='vdict win';
+      res.innerHTML=`▲ 合成划算！純利 +${fmt(profit)}<small>ROI ${roi.toFixed(1)}%　稅後實拿 ${fmt(get)}</small>`;
+    } else if (profit<0) {
+      res.className='vdict lose';
+      res.innerHTML=`▼ 合成虧損 ${fmt(Math.abs(profit))}<small>直接買方塊更划算（合成成本 ${fmt(cost)} &gt; 實拿 ${fmt(get)}）</small>`;
+    } else {
+      res.className='vdict even'; res.innerHTML='剛好打平，無利潤';
+    }
+  } else {
+    arbFlowBox.style.display = 'none';
+  }
+}
+
+function saveArbLog() {
+  const ratio  = parseInt(document.getElementById('shardRatio').value)||3;
+  const shardP = (parseFloat(document.getElementById('shardPrice').value)||0)*10000;
+  const blockP = (parseFloat(document.getElementById('blockPrice').value)||0)*10000;
+  const name   = document.getElementById('shardName').value.trim()||'未命名';
+  if(!shardP){showToast('請先輸入碎片價格');return;}
+  const cost   = shardP*ratio;
+  const profit = blockP ? Math.floor(blockP*0.94)-cost : null;
+  arblogs.unshift({name,ratio,shardP,blockP:blockP||null,profit,date:new Date().toLocaleDateString('zh-TW')});
+  localStorage.setItem('mf_arblogs',JSON.stringify(arblogs));
+  renderArbHist(); showToast('已記錄');
+}
+function renderArbHist() {
+  const el=document.getElementById('arbHistList');
+  if(!arblogs.length){el.innerHTML='<span style="color:#ccc;font-size:14px;">尚無紀錄</span>';return;}
+  el.innerHTML='<div class="tbl-wrap tbl-scroll"><table><thead><tr><th>名稱</th><th>比例</th><th>碎片價</th><th>方塊價</th><th>純利</th><th></th></tr></thead><tbody>'+
+    arblogs.map((r,i)=>`<tr>
+      <td>${r.name}</td>
+      <td style="color:#aaa;">${r.ratio}:1</td>
+      <td>${fmt(r.shardP)}</td>
+      <td>${r.blockP?fmt(r.blockP):'—'}</td>
+      <td>${r.profit!==null?`<span class="badge ${r.profit>=0?'bg':'br'}">${(r.profit>=0?'+':'')+fmt(r.profit)}</span>`:'—'}</td>
+      <td><button class="btn-sm" onclick="delArbLog(${i})">✕</button></td>
+    </tr>`).join('')+
+  '</tbody></table></div>';
+}
+function delArbLog(i){arblogs.splice(i,1);localStorage.setItem('mf_arblogs',JSON.stringify(arblogs));renderArbHist();}
+
+// ── 庫存 ──
+function addStock() {
+  const name=document.getElementById('bName').value.trim();
+  const price=parseFloat(document.getElementById('bPrice').value);
+  const qty=parseInt(document.getElementById('bQty').value);
+  if(!name||isNaN(price)||isNaN(qty)||qty<1){showToast('請完整填寫');return;}
+  inv.push({id:Date.now(),name,price,qty});
+  save(); ['bName','bPrice','bQty'].forEach(id=>document.getElementById(id).value='');
+  showToast(name+' 已入庫 '+qty+' 件');
+}
+function removeStock(id){inv=inv.filter(i=>i.id!==id);save();}
+function updateSellPreview() {
+  const idx=document.getElementById('sSelect').value;
+  const total=parseFloat(document.getElementById('sTotal').value);
+  const qty=parseInt(document.getElementById('sQty').value)||1;
+  const prev=document.getElementById('sellPreview');
+  if(idx!==''&&!isNaN(total)&&total>0){
+    const item=inv[parseInt(idx)], get=Math.floor(total*0.94), profit=get-item.price*qty;
+    document.getElementById('spGet').textContent=fmt(get);
+    const el=document.getElementById('spProfit');
+    el.textContent=(profit>=0?'+':'')+fmt(profit);
+    el.style.color=profit>=0?'#2e7d32':'#c62828';
+    prev.style.display='flex';
+  } else prev.style.display='none';
+}
+function sellItem() {
+  const idx=document.getElementById('sSelect').value;
+  const total=parseFloat(document.getElementById('sTotal').value);
+  const qty=parseInt(document.getElementById('sQty').value)||1;
+  if(idx===''||isNaN(total)){showToast('請選擇道具並填入金額');return;}
+  const item=inv[parseInt(idx)];
+  if(qty>item.qty){showToast('數量超過庫存');return;}
+  const profit=Math.floor(total*0.94)-item.price*qty;
+  logs.unshift({name:item.name,total,qty,profit,date:new Date().toLocaleDateString('zh-TW')});
+  item.qty-=qty; if(item.qty<=0) inv.splice(parseInt(idx),1);
+  save();
+  document.getElementById('sTotal').value=''; document.getElementById('sQty').value='1'; document.getElementById('sSelect').value='';
+  document.getElementById('sellPreview').style.display='none';
+  showToast('成交！純利 '+(profit>=0?'+':'')+fmt(profit));
+}
+function clearLogs(){if(!confirm('確定清除所有成交紀錄？'))return; logs=[]; save();}
+
+// ── 行情 ──
+function addWatch() {
+  const name=document.getElementById('watchName').value.trim();
+  const price=parseFloat(document.getElementById('watchPrice').value);
+  if(!name||isNaN(price)){showToast('請填寫名稱與價格');return;}
+  const time=new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});
+  watch.unshift({time,name,price});
+  if(watch.length>30) watch.pop();
+  localStorage.setItem('mf_watch',JSON.stringify(watch));
+  document.getElementById('watchName').value=''; document.getElementById('watchPrice').value='';
+  renderAll(); showToast(name+' 行情已紀錄');
+}
+function removeWatch(i){watch.splice(i,1);localStorage.setItem('mf_watch',JSON.stringify(watch));renderAll();}
+
+// ── 儲存 & 渲染 ──
+function save(){
+  localStorage.setItem('mf_inv',JSON.stringify(inv));
+  localStorage.setItem('mf_logs',JSON.stringify(logs));
+  renderAll();
+}
+function renderAll(){ renderStats(); renderStockTable(); renderSellSelect(); renderLogTable(); renderWatchUI(); renderPresets(); renderArbHist(); }
+
+function renderStats() {
+  document.getElementById('ovStock').textContent=inv.length;
+  document.getElementById('ovTrades').textContent=logs.length;
+  const total=logs.reduce((s,l)=>s+l.profit,0);
+  const el=document.getElementById('ovProfit');
+  el.textContent=(total>=0?'+':'')+fmt(total); el.className='stat-num '+(total>=0?'g':'r');
+  const wins=logs.filter(l=>l.profit>=0).length;
+  document.getElementById('ovWin').textContent=logs.length?Math.round(wins/logs.length*100)+'%':'—';
+  const lEl=document.getElementById('ov_log_list'), strip=document.getElementById('ov_total_strip');
+  if(!logs.length){lEl.innerHTML='<span style="color:#ccc;font-size:14px;">尚無紀錄</span>';strip.style.display='none';return;}
+  lEl.innerHTML='<div class="tbl-wrap"><table><thead><tr><th>道具</th><th>日期</th><th>數量</th><th>純利</th></tr></thead><tbody>'+
+    logs.slice(0,5).map(l=>`<tr><td>${l.name}</td><td style="color:#aaa;">${l.date}</td><td>${l.qty}</td><td><span class="badge ${l.profit>=0?'bg':'br'}">${(l.profit>=0?'+':'')+fmt(l.profit)}</span></td></tr>`).join('')+'</tbody></table></div>';
+  const gt=logs.reduce((s,l)=>s+l.profit,0);
+  document.getElementById('ov_grand').textContent=(gt>=0?'+':'')+fmt(gt);
+  strip.style.display='flex';
+}
+function renderStockTable() {
+  const el=document.getElementById('stockList');
+  el.innerHTML=inv.length
+    ?'<div class="tbl-wrap tbl-scroll"><table><thead><tr><th>道具名稱</th><th>單價</th><th>數量</th><th></th></tr></thead><tbody>'+
+      inv.map(item=>`<tr><td>${item.name}</td><td>${fmt(item.price)}</td><td><span class="badge bn">${item.qty}</span></td><td><button class="btn-sm" onclick="removeStock(${item.id})">刪除</button></td></tr>`).join('')+'</tbody></table></div>'
+    :'<span style="color:#ccc;font-size:14px;">尚無庫存</span>';
+}
+function renderSellSelect() {
+  document.getElementById('sSelect').innerHTML='<option value="">— 選擇庫存 —</option>'+
+    inv.map((item,i)=>`<option value="${i}">${item.name}（剩 ${item.qty}）</option>`).join('');
+}
+function renderLogTable() {
+  const el=document.getElementById('logList'), strip=document.getElementById('totalStrip');
+  if(!logs.length){el.innerHTML='<span style="color:#ccc;font-size:14px;">尚無紀錄</span>';strip.style.display='none';return;}
+  let total=0;
+  el.innerHTML='<div class="tbl-wrap tbl-scroll"><table><thead><tr><th>道具</th><th>日期</th><th>數量</th><th>純利</th></tr></thead><tbody>'+
+    logs.map(l=>{total+=l.profit;return`<tr><td>${l.name}</td><td style="color:#aaa;">${l.date}</td><td>${l.qty}</td><td><span class="badge ${l.profit>=0?'bg':'br'}">${(l.profit>=0?'+':'')+fmt(l.profit)}</span></td></tr>`;}).join('')+'</tbody></table></div>';
+  document.getElementById('grandTotal').textContent=(total>=0?'+':'')+fmt(total);
+  strip.style.display='flex';
+}
+function renderWatchUI() {
+  const map={};
+  watch.forEach(w=>{if(!map[w.name])map[w.name]={t:0,c:0};map[w.name].t+=w.price;map[w.name].c++;});
+  const keys=Object.keys(map);
+  document.getElementById('watchSummary').innerHTML=keys.length
+    ?keys.map(n=>`<div class="mtag">${n} <b>${fmt(Math.floor(map[n].t/map[n].c))}</b></div>`).join('')
+    :'<span style="color:#ccc;font-size:14px;">尚未紀錄</span>';
+  document.getElementById('watchList').innerHTML=watch.map((w,i)=>
+    `<tr><td style="color:#aaa;">${w.time}</td><td>${w.name}</td><td><b>${fmt(w.price)}</b></td><td><button class="btn-sm" onclick="removeWatch(${i})">✕</button></td></tr>`
+  ).join('');
+}
+function showToast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.style.opacity='1';
+  setTimeout(()=>t.style.opacity='0',2200);
+}
+
+document.getElementById('sSelect').addEventListener('change', updateSellPreview);
+document.getElementById('sTotal').addEventListener('input',   updateSellPreview);
+document.getElementById('sQty').addEventListener('input',     updateSellPreview);
+
+window.onload = () => { renderAll(); renderArb(); updateNav(); };
+</script>
+</body>
+</html>
