@@ -282,6 +282,42 @@ tr:last-child td { border-bottom:none; }
   }
 }
 
+/* ═══ 行情類別篩選 ═══ */
+.wcat-btn {
+  padding:5px 13px; border-radius:20px; font-size:12px; font-weight:700;
+  border:1.5px solid #ddd; background:none; cursor:pointer; color:#888;
+  transition:all 0.15s;
+}
+.wcat-btn:hover { border-color:#aaa; color:#555; }
+.wcat-btn.on { background:#e8eaf6; border-color:#7986cb; color:#3949ab; }
+
+/* ═══ 快速更新卡片 ═══ */
+.qw-grid { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:10px; }
+.qw-card {
+  border:1.5px solid #e8ebe8; border-radius:12px;
+  padding:12px 14px; background:#fafafa;
+  transition:box-shadow 0.15s, transform 0.15s;
+}
+.qw-card:hover { box-shadow:0 4px 12px rgba(0,0,0,0.08); transform:translateY(-1px); }
+.qw-name { font-size:13px; font-weight:700; color:#2c2c2c; margin-bottom:2px; }
+.qw-cat  { font-size:11px; color:#aaa; margin-bottom:8px; }
+.qw-last { font-size:12px; color:#888; margin-bottom:8px; }
+.qw-last b { color:#2c2c2c; font-size:14px; }
+.qw-input-row { display:flex; gap:6px; align-items:center; }
+.qw-input-row input {
+  flex:1; padding:7px 10px; font-size:14px;
+  border:1.5px solid #ddd; border-radius:8px; background:#fff;
+}
+.qw-input-row input:focus { border-color:#43a047; outline:none; }
+.qw-input-row button {
+  padding:7px 12px; border:none; border-radius:8px;
+  background:#388e3c; color:#fff; font-size:13px; font-weight:700;
+  cursor:pointer; transition:filter 0.15s;
+  white-space:nowrap;
+}
+.qw-input-row button:hover { filter:brightness(1.1); }
+.qw-input-row button:active { filter:brightness(0.9); transform:scale(0.97); }
+
 /* ═══ 手續費切換 ═══ */
 .fee-bar {
   display:flex; align-items:center; gap:6px;
@@ -494,22 +530,52 @@ tr:last-child td { border-bottom:none; }
   <!-- ══ 行情觀察 ══ -->
   <div class="sec" id="sec-watch">
     <div class="sec-hd">👁 行情觀察</div>
+
+    <!-- 新增紀錄 -->
     <div class="card">
       <div style="font-size:12px;font-weight:800;color:#aaa;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:14px;">新增紀錄</div>
-      <div style="display:grid;grid-template-columns:2fr 2fr auto;gap:12px;align-items:end;">
+      <div style="display:grid;grid-template-columns:1.5fr 1.5fr 1fr auto;gap:12px;align-items:end;">
         <div class="fg" style="margin:0;"><label>道具名稱</label><input type="text" id="watchName" placeholder="e.g. 奇幻方塊" /></div>
         <div class="fg" style="margin:0;"><label>目前價格</label><input type="number" id="watchPrice" placeholder="拍賣行現價" /></div>
+        <div class="fg" style="margin:0;">
+          <label>類別</label>
+          <select id="watchCat">
+            <option value="方塊">🟦 方塊</option>
+            <option value="卷軸">📜 卷軸</option>
+            <option value="裝備">⚔️ 裝備</option>
+            <option value="其他">🔹 其他</option>
+          </select>
+        </div>
         <button class="btn btn-indigo" style="width:auto;padding:11px 20px;" onclick="addWatch()">紀錄</button>
       </div>
     </div>
+
+    <!-- 類別分頁 + 快速更新 -->
+    <div class="card">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;flex-wrap:wrap;gap:8px;">
+        <div style="font-size:12px;font-weight:800;color:#aaa;letter-spacing:0.5px;text-transform:uppercase;">已追蹤道具 — 點按更新價格</div>
+        <div style="display:flex;gap:6px;">
+          <button class="wcat-btn on" onclick="setWatchCat('全部')">全部</button>
+          <button class="wcat-btn" onclick="setWatchCat('方塊')">🟦 方塊</button>
+          <button class="wcat-btn" onclick="setWatchCat('卷軸')">📜 卷軸</button>
+          <button class="wcat-btn" onclick="setWatchCat('裝備')">⚔️ 裝備</button>
+          <button class="wcat-btn" onclick="setWatchCat('其他')">🔹 其他</button>
+        </div>
+      </div>
+      <div id="watchQuickList"><span style="color:#ccc;font-size:14px;">尚未紀錄任何道具</span></div>
+    </div>
+
+    <!-- 平均行情 -->
     <div class="card">
       <div style="font-size:12px;font-weight:800;color:#aaa;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:12px;">平均行情</div>
       <div class="mwrap" id="watchSummary"><span style="color:#ccc;font-size:14px;">尚未紀錄</span></div>
     </div>
+
+    <!-- 明細 -->
     <div class="card">
       <div style="font-size:12px;font-weight:800;color:#aaa;letter-spacing:0.5px;text-transform:uppercase;margin-bottom:4px;">明細紀錄</div>
       <div class="tbl-wrap tbl-scroll">
-        <table><thead><tr><th>時間</th><th>道具</th><th>價格</th><th></th></tr></thead>
+        <table><thead><tr><th>時間</th><th>類別</th><th>道具</th><th>價格</th><th></th></tr></thead>
         <tbody id="watchList"></tbody></table>
       </div>
     </div>
@@ -805,18 +871,101 @@ function sellItem() {
 function clearLogs(){if(!confirm('確定清除所有成交紀錄？'))return; logs=[]; save();}
 
 // ── 行情 ──
-function addWatch() {
-  const name=document.getElementById('watchName').value.trim();
-  const price=parseFloat(document.getElementById('watchPrice').value);
-  if(!name||isNaN(price)){showToast('請填寫名稱與價格');return;}
-  const time=new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});
-  watch.unshift({time,name,price});
-  if(watch.length>30) watch.pop();
-  localStorage.setItem('mf_watch',JSON.stringify(watch));
-  document.getElementById('watchName').value=''; document.getElementById('watchPrice').value='';
-  renderAll(); showToast(name+' 行情已紀錄');
+let watchCatFilter = '全部';
+
+function setWatchCat(cat) {
+  watchCatFilter = cat;
+  document.querySelectorAll('.wcat-btn').forEach(b => b.classList.toggle('on', b.textContent.includes(cat) || (cat==='全部'&&b.textContent==='全部')));
+  renderWatchUI();
 }
-function removeWatch(i){watch.splice(i,1);localStorage.setItem('mf_watch',JSON.stringify(watch));renderAll();}
+
+function addWatch() {
+  const name  = document.getElementById('watchName').value.trim();
+  const price = parseFloat(document.getElementById('watchPrice').value);
+  const cat   = document.getElementById('watchCat').value;
+  if (!name||isNaN(price)) { showToast('請填寫名稱與價格'); return; }
+  const time  = new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});
+  watch.unshift({time, name, price, cat: cat||'其他'});
+  if (watch.length > 60) watch.pop();
+  localStorage.setItem('mf_watch', JSON.stringify(watch));
+  document.getElementById('watchName').value  = '';
+  document.getElementById('watchPrice').value = '';
+  renderAll(); showToast(name + ' 行情已紀錄');
+}
+
+function quickUpdate(name, cat) {
+  const inp = document.getElementById('qwinput_' + name);
+  if (!inp) return;
+  const price = parseFloat(inp.value);
+  if (isNaN(price)||price<=0) { showToast('請輸入有效價格'); return; }
+  const time = new Date().toLocaleTimeString('zh-TW',{hour:'2-digit',minute:'2-digit'});
+  watch.unshift({time, name, price, cat: cat||'其他'});
+  if (watch.length > 60) watch.pop();
+  localStorage.setItem('mf_watch', JSON.stringify(watch));
+  inp.value = '';
+  renderAll(); showToast(name + ' 更新為 ' + fmt(price));
+}
+
+function removeWatch(i) { watch.splice(i,1); localStorage.setItem('mf_watch',JSON.stringify(watch)); renderAll(); }
+
+function renderWatchUI() {
+  // 計算每個道具的最新價 + 平均
+  const itemMap = {}; // name -> {cat, latest, prices[]}
+  watch.forEach(w => {
+    if (!itemMap[w.name]) itemMap[w.name] = { cat: w.cat||'其他', latest: w.price, prices:[] };
+    itemMap[w.name].prices.push(w.price);
+  });
+
+  // 快速更新卡片
+  const qEl = document.getElementById('watchQuickList');
+  const names = Object.keys(itemMap).filter(n =>
+    watchCatFilter === '全部' || itemMap[n].cat === watchCatFilter
+  );
+  if (!names.length) {
+    qEl.innerHTML = '<span style="color:#ccc;font-size:14px;">此類別尚無紀錄</span>';
+  } else {
+    const CAT_ICON = { '方塊':'🟦', '卷軸':'📜', '裝備':'⚔️', '其他':'🔹' };
+    qEl.innerHTML = '<div class="qw-grid">' + names.map(n => {
+      const d = itemMap[n];
+      const avg = Math.floor(d.prices.reduce((a,b)=>a+b,0)/d.prices.length);
+      const icon = CAT_ICON[d.cat] || '🔹';
+      const safeId = 'qwinput_' + n;
+      return `<div class="qw-card">
+        <div class="qw-name">${n}</div>
+        <div class="qw-cat">${icon} ${d.cat}</div>
+        <div class="qw-last">最新 <b>${fmt(d.latest)}</b>　均價 <span style="color:#888;">${fmt(avg)}</span></div>
+        <div class="qw-input-row">
+          <input type="number" id="${safeId}" placeholder="輸入新價格" />
+          <button onclick="quickUpdate('${n}','${d.cat}')">更新</button>
+        </div>
+      </div>`;
+    }).join('') + '</div>';
+  }
+
+  // 平均行情標籤（全部）
+  const allNames = Object.keys(itemMap);
+  const sumEl = document.getElementById('watchSummary');
+  const CAT_ICON2 = { '方塊':'🟦', '卷軸':'📜', '裝備':'⚔️', '其他':'🔹' };
+  sumEl.innerHTML = allNames.length
+    ? allNames.map(n => {
+        const d = itemMap[n];
+        const avg = Math.floor(d.prices.reduce((a,b)=>a+b,0)/d.prices.length);
+        return `<div class="mtag">${CAT_ICON2[d.cat]||'🔹'} ${n} <b>${fmt(avg)}</b></div>`;
+      }).join('')
+    : '<span style="color:#ccc;font-size:14px;">尚未紀錄</span>';
+
+  // 明細表格
+  document.getElementById('watchList').innerHTML = watch.map((w,i) => {
+    const icon = CAT_ICON2[w.cat||'其他'] || '🔹';
+    return `<tr>
+      <td style="color:#aaa;">${w.time}</td>
+      <td><span style="font-size:12px;">${icon} ${w.cat||'其他'}</span></td>
+      <td>${w.name}</td>
+      <td><b>${fmt(w.price)}</b></td>
+      <td><button class="btn-sm" onclick="removeWatch(${i})">✕</button></td>
+    </tr>`;
+  }).join('');
+}
 
 // ── 儲存 & 渲染 ──
 function save(){
@@ -861,17 +1010,6 @@ function renderLogTable() {
     logs.map(l=>{total+=l.profit;return`<tr><td>${l.name}</td><td style="color:#aaa;">${l.date}</td><td>${l.qty}</td><td><span class="badge ${l.profit>=0?'bg':'br'}">${(l.profit>=0?'+':'')+fmt(l.profit)}</span></td></tr>`;}).join('')+'</tbody></table></div>';
   document.getElementById('grandTotal').textContent=(total>=0?'+':'')+fmt(total);
   strip.style.display='flex';
-}
-function renderWatchUI() {
-  const map={};
-  watch.forEach(w=>{if(!map[w.name])map[w.name]={t:0,c:0};map[w.name].t+=w.price;map[w.name].c++;});
-  const keys=Object.keys(map);
-  document.getElementById('watchSummary').innerHTML=keys.length
-    ?keys.map(n=>`<div class="mtag">${n} <b>${fmt(Math.floor(map[n].t/map[n].c))}</b></div>`).join('')
-    :'<span style="color:#ccc;font-size:14px;">尚未紀錄</span>';
-  document.getElementById('watchList').innerHTML=watch.map((w,i)=>
-    `<tr><td style="color:#aaa;">${w.time}</td><td>${w.name}</td><td><b>${fmt(w.price)}</b></td><td><button class="btn-sm" onclick="removeWatch(${i})">✕</button></td></tr>`
-  ).join('');
 }
 function showToast(msg){
   const t=document.getElementById('toast');
