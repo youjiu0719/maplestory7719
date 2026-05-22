@@ -282,7 +282,33 @@ tr:last-child td { border-bottom:none; }
   }
 }
 
-.toast {
+/* ═══ 手續費切換 ═══ */
+.fee-bar {
+  display:flex; align-items:center; gap:6px;
+  margin-left:auto; padding:0 18px; flex-shrink:0;
+  border-left:1px solid rgba(255,255,255,0.1);
+}
+.fee-bar .fee-lbl {
+  font-size:12px; color:#9cba9e; font-weight:600;
+  white-space:nowrap; margin-right:2px;
+}
+.fee-btn {
+  padding:5px 12px; border-radius:20px; font-size:13px; font-weight:700;
+  border:1.5px solid rgba(255,255,255,0.15);
+  background:none; cursor:pointer; color:#9cba9e;
+  transition:all 0.15s;
+}
+.fee-btn:hover { color:#e8f5e9; border-color:rgba(255,255,255,0.3); }
+.fee-btn.on { background:#2e7d32; border-color:#2e7d32; color:#fff; }
+.fee-custom {
+  width:62px; padding:5px 8px;
+  border:1.5px solid rgba(255,255,255,0.15);
+  border-radius:20px; background:none;
+  font-size:13px; font-weight:700; color:#9cba9e;
+  text-align:center;
+}
+.fee-custom:focus { outline:none; border-color:#ffd54f; color:#ffd54f; background:rgba(255,255,255,0.06); }
+.fee-pct { font-size:13px; color:#9cba9e; font-weight:600; margin-left:-4px; }
   position:fixed; bottom:2rem; left:50%; transform:translateX(-50%);
   background:#1e2b1f; color:#e8f5e9;
   padding:10px 24px; border-radius:24px;
@@ -296,12 +322,19 @@ tr:last-child td { border-bottom:none; }
 <body>
 
 <nav class="nav">
-  <div class="nav-brand">🍁 拍賣助手</div>
+  <div class="nav-brand">🍁 拍賣助手 <span id="feeDisplay" style="font-size:12px;font-weight:600;color:#a5d6a7;margin-left:6px;"></span></div>
   <a href="#sec-pricing">🔍 定價試算</a>
   <a href="#sec-shard">💎 碎片套利</a>
   <a href="#sec-inv">📦 庫存管理</a>
   <a href="#sec-watch">👁 行情觀察</a>
   <a href="#sec-stats">📊 統計</a>
+  <div class="fee-bar">
+    <span class="fee-lbl">手續費</span>
+    <button class="fee-btn" id="feeBtn3" onclick="setFee(3)">3%</button>
+    <button class="fee-btn on" id="feeBtn6" onclick="setFee(6)">6%</button>
+    <input class="fee-custom" id="feeCustom" type="number" min="0" max="99" step="0.1" placeholder="自訂" oninput="setFeeCustom()" />
+    <span class="fee-pct">%</span>
+  </div>
 </nav>
 
 <div class="page">
@@ -516,7 +549,48 @@ let presets = JSON.parse(localStorage.getItem('mf_presets') || JSON.stringify([
   { name: '大師附加奇幻方塊', ratio: 3 },
 ]));
 
-// ── 數字格式：X萬XXXX ──
+// ── 手續費 ──
+let FEE = parseFloat(localStorage.getItem('mf_fee') || '6') / 100;
+
+function setFee(pct) {
+  FEE = pct / 100;
+  localStorage.setItem('mf_fee', String(pct));
+  document.getElementById('feeBtn3').classList.toggle('on', pct===3);
+  document.getElementById('feeBtn6').classList.toggle('on', pct===6);
+  document.getElementById('feeCustom').value = '';
+  updateFeeLabel();
+  recalcAll();
+}
+function setFeeCustom() {
+  const v = parseFloat(document.getElementById('feeCustom').value);
+  if (isNaN(v) || v < 0 || v > 99) return;
+  FEE = v / 100;
+  localStorage.setItem('mf_fee', String(v));
+  document.getElementById('feeBtn3').classList.remove('on');
+  document.getElementById('feeBtn6').classList.remove('on');
+  recalcAll();
+}
+function updateFeeLabel() {
+  const pct = Math.round(FEE * 1000) / 10;
+  // nav brand 旁顯示目前費率
+  document.getElementById('feeDisplay').textContent = pct + '%';
+}
+function recalcAll() {
+  calcPricing(); renderArb(); updateSellPreview(); updateFeeLabel();
+}
+// 初始化按鈕狀態
+function initFeeUI() {
+  const saved = parseFloat(localStorage.getItem('mf_fee') || '6');
+  FEE = saved / 100;
+  if (saved === 3) { document.getElementById('feeBtn3').classList.add('on'); document.getElementById('feeBtn6').classList.remove('on'); }
+  else if (saved === 6) { document.getElementById('feeBtn6').classList.add('on'); document.getElementById('feeBtn3').classList.remove('on'); }
+  else {
+    document.getElementById('feeBtn3').classList.remove('on');
+    document.getElementById('feeBtn6').classList.remove('on');
+    document.getElementById('feeCustom').value = saved;
+  }
+  updateFeeLabel();
+}
 function fmt(n) {
   if (isNaN(n) || n === undefined || n === null) return '—';
   n = Math.round(n);
@@ -526,7 +600,7 @@ function fmt(n) {
   const wan  = Math.floor(abs / 10000);
   const rest = abs % 10000;
   if (rest === 0) return sign + wan + '萬';
-  return sign + wan + '萬' + String(rest).padStart(4, '0');
+  return sign + wan + '萬' + rest;
 }
 
 // ── 導覽高亮 ──
@@ -549,14 +623,14 @@ function calcPricing() {
     const eEl = document.getElementById('pe'+i);
     const box = document.querySelectorAll('.pi')[i];
     if (!cost||cost<=0) { vEl.textContent='—'; eEl.textContent='輸入成本'; box.onclick=null; return; }
-    const sell   = Math.ceil((cost*(1+r))/0.94);
-    const profit = Math.floor(sell*0.94)-cost;
+    const sell   = Math.ceil((cost*(1+r))/(1-FEE));
+    const profit = Math.floor(sell*(1-FEE))-cost;
     vEl.textContent = fmt(sell);
     eEl.textContent = '+'+ fmt(profit);
     box.onclick = () => { navigator.clipboard&&navigator.clipboard.writeText(String(sell)); showToast('已複製 '+fmt(sell)); };
   });
   if (custom>0&&cost>0) {
-    const get=Math.floor(custom*0.94), profit=get-cost;
+    const get=Math.floor(custom*(1-FEE)), profit=get-cost;
     document.getElementById('cGet').textContent = fmt(get);
     const el=document.getElementById('cProfit');
     el.textContent=(profit>=0?'+':'')+fmt(profit);
@@ -624,8 +698,8 @@ function renderArb() {
   // 反推目標格
   targetSec.style.display = 'block';
   TG_RATES.forEach((r,i) => {
-    const target = Math.ceil((cost*(1+r))/0.94);
-    const profit = Math.floor(target*0.94) - cost;
+    const target = Math.ceil((cost*(1+r))/(1-FEE));
+    const profit = Math.floor(target*(1-FEE)) - cost;
     const box = document.querySelectorAll('.tg')[i];
     document.getElementById('tg'+i).textContent = fmt(target);
     if (i > 0) document.getElementById('ts'+i).textContent = '+'+fmt(profit);
@@ -638,7 +712,7 @@ function renderArb() {
   // 如果也有方塊現價：顯示流程 + 判斷
   if (blockP) {
     arbFlowBox.style.display = 'block';
-    const get    = Math.floor(blockP*0.94);
+    const get    = Math.floor(blockP*(1-FEE));
     const profit = get - cost;
     const roi    = profit/cost*100;
     document.getElementById('arbShardLabel').textContent = '碎片 ×'+ratio;
@@ -667,7 +741,7 @@ function saveArbLog() {
   const name   = document.getElementById('shardName').value.trim()||'未命名';
   if(!shardP){showToast('請先輸入碎片價格');return;}
   const cost   = shardP*ratio;
-  const profit = blockP ? Math.floor(blockP*0.94)-cost : null;
+  const profit = blockP ? Math.floor(blockP*(1-FEE))-cost : null;
   arblogs.unshift({name,ratio,shardP,blockP:blockP||null,profit,date:new Date().toLocaleDateString('zh-TW')});
   localStorage.setItem('mf_arblogs',JSON.stringify(arblogs));
   renderArbHist(); showToast('已記錄');
@@ -705,7 +779,7 @@ function updateSellPreview() {
   const qty=parseInt(document.getElementById('sQty').value)||1;
   const prev=document.getElementById('sellPreview');
   if(idx!==''&&!isNaN(total)&&total>0){
-    const item=inv[parseInt(idx)], get=Math.floor(total*0.94), profit=get-item.price*qty;
+    const item=inv[parseInt(idx)], get=Math.floor(total*(1-FEE)), profit=get-item.price*qty;
     document.getElementById('spGet').textContent=fmt(get);
     const el=document.getElementById('spProfit');
     el.textContent=(profit>=0?'+':'')+fmt(profit);
@@ -720,7 +794,7 @@ function sellItem() {
   if(idx===''||isNaN(total)){showToast('請選擇道具並填入金額');return;}
   const item=inv[parseInt(idx)];
   if(qty>item.qty){showToast('數量超過庫存');return;}
-  const profit=Math.floor(total*0.94)-item.price*qty;
+  const profit=Math.floor(total*(1-FEE))-item.price*qty;
   logs.unshift({name:item.name,total,qty,profit,date:new Date().toLocaleDateString('zh-TW')});
   item.qty-=qty; if(item.qty<=0) inv.splice(parseInt(idx),1);
   save();
@@ -809,7 +883,7 @@ document.getElementById('sSelect').addEventListener('change', updateSellPreview)
 document.getElementById('sTotal').addEventListener('input',   updateSellPreview);
 document.getElementById('sQty').addEventListener('input',     updateSellPreview);
 
-window.onload = () => { renderAll(); renderArb(); updateNav(); };
+window.onload = () => { initFeeUI(); renderAll(); renderArb(); updateNav(); };
 </script>
 </body>
 </html>
