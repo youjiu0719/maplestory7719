@@ -282,6 +282,20 @@ tr:last-child td { border-bottom:none; }
   }
 }
 
+/* ═══ 拖拉排序 ═══ */
+.qw-card { cursor:default; user-select:none; }
+.qw-card.dragging { opacity:0.4; transform:scale(0.97); box-shadow:0 2px 8px rgba(0,0,0,0.12); }
+.qw-card.drag-over { border-color:#43a047; box-shadow:0 0 0 2px #a5d6a7; }
+.drag-handle {
+  display:inline-flex; align-items:center; justify-content:center;
+  width:20px; height:20px; margin-right:6px;
+  color:#ccc; font-size:14px; cursor:grab; flex-shrink:0;
+  border-radius:4px; transition:color 0.15s;
+  vertical-align:middle;
+}
+.drag-handle:hover { color:#888; }
+.drag-handle:active { cursor:grabbing; }
+
 /* ═══ 行情類別篩選 ═══ */
 .wcat-btn {
   padding:5px 13px; border-radius:20px; font-size:12px; font-weight:700;
@@ -872,6 +886,11 @@ function clearLogs(){if(!confirm('確定清除所有成交紀錄？'))return; lo
 
 // ── 行情 ──
 let watchCatFilter = '全部';
+let watchOrder = JSON.parse(localStorage.getItem('mf_watch_order') || '[]');
+
+function saveWatchOrder() {
+  localStorage.setItem('mf_watch_order', JSON.stringify(watchOrder));
+}
 
 function setWatchCat(cat) {
   watchCatFilter = cat;
@@ -888,13 +907,15 @@ function addWatch() {
   watch.unshift({time, name, price, cat: cat||'其他'});
   if (watch.length > 60) watch.pop();
   localStorage.setItem('mf_watch', JSON.stringify(watch));
+  // 新道具加到排序尾端（如果還沒有）
+  if (!watchOrder.includes(name)) { watchOrder.push(name); saveWatchOrder(); }
   document.getElementById('watchName').value  = '';
   document.getElementById('watchPrice').value = '';
   renderAll(); showToast(name + ' 行情已紀錄');
 }
 
 function quickUpdate(name, cat) {
-  const inp = document.getElementById('qwinput_' + name);
+  const inp = document.getElementById('qwinput_' + CSS.escape(name));
   if (!inp) return;
   const price = parseFloat(inp.value);
   if (isNaN(price)||price<=0) { showToast('請輸入有效價格'); return; }
@@ -907,6 +928,113 @@ function quickUpdate(name, cat) {
 }
 
 function removeWatch(i) { watch.splice(i,1); localStorage.setItem('mf_watch',JSON.stringify(watch)); renderAll(); }
+
+// 拖拉排序邏輯
+let dragSrc = null;
+function onDragStart(e, name) {
+  dragSrc = name;
+  e.dataTransfer.effectAllowed = 'move';
+  e.currentTarget.classList.add('dragging');
+}
+function onDragEnd(e) {
+  e.currentTarget.classList.remove('dragging');
+  document.querySelectorAll('.qw-card').forEach(c => c.classList.remove('drag-over'));
+}
+function onDragOver(e, name) {
+  e.preventDefault();
+  e.dataTransfer.dropEffect = 'move';
+  document.querySelectorAll('.qw-card').forEach(c => c.classList.remove('drag-over'));
+  if (name !== dragSrc) e.currentTarget.classList.add('drag-over');
+}
+function onDrop(e, name) {
+  e.preventDefault();
+  if (!dragSrc || dragSrc === name) return;
+  const from = watchOrder.indexOf(dragSrc);
+  const to   = watchOrder.indexOf(name);
+  if (from < 0 || to < 0) return;
+  watchOrder.splice(from, 1);
+  watchOrder.splice(to, 0, dragSrc);
+  saveWatchOrder();
+  renderWatchUI();
+}
+
+function renderWatchUI() {
+  const CAT_ICON = { '方塊':'🟦', '卷軸':'📜', '裝備':'⚔️', '其他':'🔹' };
+
+  // 建立 itemMap
+  const itemMap = {};
+  watch.forEach(w => {
+    if (!itemMap[w.name]) itemMap[w.name] = { cat: w.cat||'其他', latest: w.price, prices:[] };
+    itemMap[w.name].prices.push(w.price);
+  });
+
+  // 同步 watchOrder：新道具加進去、已刪除的移掉
+  const allNames = Object.keys(itemMap);
+  allNames.forEach(n => { if (!watchOrder.includes(n)) watchOrder.push(n); });
+  watchOrder = watchOrder.filter(n => itemMap[n]);
+  saveWatchOrder();
+
+  // 快速更新卡片（照 watchOrder 排序，再套類別篩選）
+  const qEl = document.getElementById('watchQuickList');
+  const orderedNames = watchOrder.filter(n =>
+    watchCatFilter === '全部' || itemMap[n].cat === watchCatFilter
+  );
+
+  if (!orderedNames.length) {
+    qEl.innerHTML = '<span style="color:#ccc;font-size:14px;">此類別尚無紀錄</span>';
+  } else {
+    const grid = document.createElement('div');
+    grid.className = 'qw-grid';
+    orderedNames.forEach(n => {
+      const d   = itemMap[n];
+      const avg = Math.floor(d.prices.reduce((a,b)=>a+b,0)/d.prices.length);
+      const icon = CAT_ICON[d.cat] || '🔹';
+      const card = document.createElement('div');
+      card.className = 'qw-card';
+      card.draggable = true;
+      card.innerHTML = `
+        <div style="display:flex;align-items:center;margin-bottom:1px;">
+          <span class="drag-handle" title="拖曳排序">⠿</span>
+          <span class="qw-name">${n}</span>
+        </div>
+        <div class="qw-cat">${icon} ${d.cat}</div>
+        <div class="qw-last">最新 <b>${fmt(d.latest)}</b>　均價 <span style="color:#888;">${fmt(avg)}</span></div>
+        <div class="qw-input-row">
+          <input type="number" id="qwinput_${n}" placeholder="輸入新價格" />
+          <button onclick="quickUpdate('${n}','${d.cat}')">更新</button>
+        </div>`;
+      card.addEventListener('dragstart', e => onDragStart(e, n));
+      card.addEventListener('dragend',   e => onDragEnd(e));
+      card.addEventListener('dragover',  e => onDragOver(e, n));
+      card.addEventListener('drop',      e => onDrop(e, n));
+      grid.appendChild(card);
+    });
+    qEl.innerHTML = '';
+    qEl.appendChild(grid);
+  }
+
+  // 平均行情標籤
+  const sumEl = document.getElementById('watchSummary');
+  sumEl.innerHTML = allNames.length
+    ? watchOrder.map(n => {
+        const d = itemMap[n];
+        const avg = Math.floor(d.prices.reduce((a,b)=>a+b,0)/d.prices.length);
+        return `<div class="mtag">${CAT_ICON[d.cat]||'🔹'} ${n} <b>${fmt(avg)}</b></div>`;
+      }).join('')
+    : '<span style="color:#ccc;font-size:14px;">尚未紀錄</span>';
+
+  // 明細表格
+  document.getElementById('watchList').innerHTML = watch.map((w,i) => {
+    const icon = CAT_ICON[w.cat||'其他'] || '🔹';
+    return `<tr>
+      <td style="color:#aaa;">${w.time}</td>
+      <td><span style="font-size:12px;">${icon} ${w.cat||'其他'}</span></td>
+      <td>${w.name}</td>
+      <td><b>${fmt(w.price)}</b></td>
+      <td><button class="btn-sm" onclick="removeWatch(${i})">✕</button></td>
+    </tr>`;
+  }).join('');
+}
 
 function renderWatchUI() {
   // 計算每個道具的最新價 + 平均
